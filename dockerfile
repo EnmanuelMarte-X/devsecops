@@ -1,19 +1,19 @@
-# ---------- STAGE 1: BUILD ----------
+# Stage 1: build + test
 FROM golang:1.22-alpine AS builder
-
 WORKDIR /app
 
-COPY app/ .
+COPY go.mod ./
+RUN go mod download
 
+COPY . .
+RUN go test ./...
 RUN go build -o app
 
-# ---------- STAGE 2: RUNTIME ----------
-FROM alpine:3.19
-
+# Stage 2: runtime
+FROM alpine:latest
 WORKDIR /app
 
 COPY --from=builder /app/app .
-
 EXPOSE 8080
 
 CMD ["./app"]

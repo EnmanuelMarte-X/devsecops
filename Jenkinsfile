@@ -9,7 +9,7 @@ pipeline {
       }
     }
 
-    stage('Test & Build Image') {
+    stage('Build & Test') {
       steps {
         sh 'docker build -t ci-go-example:${BUILD_NUMBER} .'
       }
