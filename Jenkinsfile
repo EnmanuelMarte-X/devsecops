@@ -17,13 +17,7 @@ pipeline {
       }
     }
 
-    stage('Test') {
-      steps {
-        sh 'go test ./...'
-      }
-    }
-
-    stage('Build Image') {
+    stage('Build Image (with Tests)') {
       steps {
         sh """
           docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
