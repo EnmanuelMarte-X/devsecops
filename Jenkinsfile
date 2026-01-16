@@ -75,13 +75,3 @@ pipeline {
       }
     }
   }
-
-  post {
-    success {
-      echo '✅ Pipeline completed successfully and image pushed to ECR'
-    }
-    failure {
-      echo '❌ Pipeline failed — check logs'
-    }
-  }
-}
