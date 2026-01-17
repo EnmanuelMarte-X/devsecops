@@ -2,10 +2,6 @@ pipeline {
   agent any
 
   environment {
-    AWS_REGION = 'us-east-1'
-    AWS_ACCOUNT_ID = '001109276188'
-    IMAGE_NAME = 'ci-go-example'
-    ECR_REPO = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/devsecops/ci-go-example"
     IMAGE_TAG = "${BUILD_NUMBER}"
   }
 
