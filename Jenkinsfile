@@ -2,51 +2,49 @@ pipeline {
   agent any
 
   environment {
-    IMAGE_NAME = "ci-go-example"
-    REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    AWS_REGION = 'us-east-1'
+    AWS_ACCOUNT_ID = '001109276188'
+    ECR_REPO = 'devsecops/ci-go-example'
+    IMAGE_TAG = "${BUILD_NUMBER}"
   }
 
   stages {
+
     stage('Checkout') {
       steps {
         checkout scm
       }
     }
 
-    stage('Build Docker Image') {
-      steps {
-        sh "docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} ."
-      }
-    }
-
     stage('Unit Tests') {
       steps {
-        sh "go test ./..."   // Cambia esto si no es Go
+        sh 'go test ./...'
       }
     }
 
-    stage('Trivy Scan') {
+    stage('Security Scan (Filesystem)') {
       steps {
-        sh "trivy image ${IMAGE_NAME}:${BUILD_NUMBER}"
+        sh '''
+          trivy fs --exit-code 1 --severity HIGH,CRITICAL .
+        '''
       }
     }
 
-    stage('Push to ECR') {
+    stage('Build & Push Image (Kaniko)') {
       steps {
-        withAWS(credentials: 'aws-credentials-id', region: "${AWS_REGION}") {
-          sh """
-            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY}
-            docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${REGISTRY}/${ECR_REPO}:${BUILD_NUMBER}
-            docker push ${REGISTRY}/${ECR_REPO}:${BUILD_NUMBER}
-          """
-        }
+        sh '''
+          /kaniko/executor \
+            --context $WORKSPACE \
+            --dockerfile $WORKSPACE/Dockerfile \
+            --destination ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}
+        '''
       }
     }
 
     stage('Trigger Deploy Staging') {
       steps {
         build job: 'deploy-staging', wait: false, parameters: [
-          string(name: 'IMAGE_TAG', value: "${BUILD_NUMBER}")
+          string(name: 'IMAGE_TAG', value: "${IMAGE_TAG}")
         ]
       }
     }
@@ -54,10 +52,10 @@ pipeline {
 
   post {
     success {
-      echo '✅ Pipeline completed successfully'
+      echo '✅ Build, scan y push a ECR exitosos'
     }
     failure {
-      echo '❌ Pipeline failed — check logs'
+      echo '❌ Pipeline falló'
     }
   }
 }
