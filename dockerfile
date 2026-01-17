@@ -2,8 +2,8 @@
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
 
-# Copiar go.mod y go.sum desde la raíz
-COPY go.mod go.sum ./
+# Copiar go.mod desde la raíz
+COPY go.mod ./
 
 RUN go mod download
 
@@ -19,7 +19,7 @@ RUN go build -o /app/app/app
 FROM alpine:latest
 WORKDIR /app
 
-COPY --from=builder /app/app ./
+COPY --from=builder /app/app/app ./
 EXPOSE 8080
 
 CMD ["./app"]
