@@ -2,12 +2,12 @@
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
 
-# Copiar go.mod desde la raíz
-COPY go.mod ./
+# Copiar go.mod y go.sum desde app/
+COPY app/go.mod app/go.sum ./
 
 RUN go mod download
 
-# Copiar solo el contenido de app
+# Copiar el contenido de app
 COPY app ./app
 
 WORKDIR /app/app
