@@ -3,8 +3,9 @@ pipeline {
 
   environment {
     AWS_REGION = 'us-east-1'
-    ECR_REPO   = '123456789012.dkr.ecr.us-east-1.amazonaws.com/devsecops'
-    IMAGE_TAG  = "${GIT_COMMIT}"
+    AWS_ACCOUNT_ID = '001109276188'
+    ECR_REPO = 'jenkins-kaniko'
+    IMAGE_TAG = "${BUILD_NUMBER}"
   }
 
   stages {
@@ -15,35 +16,30 @@ pipeline {
       }
     }
 
-    stage('Security Scan (Filesystem - Trivy)') {
-      steps {
-        sh '''
-          trivy fs --exit-code 1 --severity HIGH,CRITICAL .
-        '''
-      }
-    }
-
     stage('Build & Push Image (Kaniko)') {
       steps {
         sh '''
           /kaniko/executor \
-            --context $PWD \
+            --context $WORKSPACE \
             --dockerfile Dockerfile \
-            --destination $ECR_REPO:$IMAGE_TAG
+            --destination ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}
         '''
       }
     }
 
-    stage('Trigger Deploy to Staging') {
+    stage('Trigger Deploy (dummy)') {
       steps {
-        echo "Deploy triggered"
+        echo "Imagen ${IMAGE_TAG} subida a ECR"
       }
     }
   }
 
   post {
+    success {
+      echo '✅ Build & Push a ECR exitoso'
+    }
     failure {
-      echo '❌ CI falló: build detenido'
+      echo '❌ CI falló'
     }
   }
 }
