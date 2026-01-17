@@ -2,19 +2,24 @@
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
 
-COPY go.mod ./
+# Copiar go.mod y go.sum desde la raíz
+COPY go.mod go.sum ./
+
 RUN go mod download
 
-COPY . .
+# Copiar solo el contenido de app
+COPY app ./app
+
+WORKDIR /app/app
+
 RUN go test ./...
-RUN go build -o app
+RUN go build -o /app/app/app
 
 # Stage 2: runtime
 FROM alpine:latest
 WORKDIR /app
 
-COPY --from=builder /app/app .
+COPY --from=builder /app/app ./
 EXPOSE 8080
 
 CMD ["./app"]
-
