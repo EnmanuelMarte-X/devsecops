@@ -1,9 +1,5 @@
 pipeline {
-  agent {
-    docker {
-      image 'amazon/aws-cli:latest'
-    }
-  }
+  agent any
 
   environment {
     AWS_REGION = 'us-east-1'
@@ -20,7 +16,6 @@ pipeline {
     stage('Trigger CodeBuild') {
       steps {
         script {
-          // Inicia el build en CodeBuild y captura el buildId
           def buildId = sh(
             script: "aws codebuild start-build --project-name ${CODEBUILD_PROJECT} --region ${AWS_REGION} --query 'build.id' --output text",
             returnStdout: true
@@ -28,7 +23,6 @@ pipeline {
 
           echo "CodeBuild started: ${buildId}"
 
-          // Espera hasta que el build termine
           timeout(time: 20, unit: 'MINUTES') {
             waitUntil {
               def status = sh(
@@ -42,7 +36,6 @@ pipeline {
             }
           }
 
-          // Verifica el resultado final
           def finalStatus = sh(
             script: "aws codebuild batch-get-builds --ids ${buildId} --region ${AWS_REGION} --query 'builds[0].buildStatus' --output text",
             returnStdout: true
@@ -50,7 +43,6 @@ pipeline {
 
           echo "Final CodeBuild status: ${finalStatus}"
 
-          // Fallar Jenkins si CodeBuild falla
           if (finalStatus != 'SUCCEEDED') {
             error "CodeBuild failed with status: ${finalStatus}"
           }
