@@ -1,5 +1,12 @@
 version: 0.2
 
+env:
+  variables:
+    AWS_REGION: us-east-1
+    AWS_ACCOUNT_ID: 001109276188
+    ECR_REPO: devsecops/ci-go-example
+    IMAGE_NAME: ci-go-example
+
 phases:
   install:
     runtime-versions:
