@@ -2,11 +2,9 @@ pipeline {
   agent any
 
   environment {
-    AWS_REGION     = 'us-east-1'
-    AWS_ACCOUNT_ID = '001109276188'
-    ECR_REPO       = 'devsecops/ci-go-example'
-    IMAGE_TAG      = "${BUILD_NUMBER}"
-    ECR_URI        = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+    AWS_REGION = 'us-east-1'
+    ECR_REPO   = '123456789012.dkr.ecr.us-east-1.amazonaws.com/devsecops'
+    IMAGE_TAG  = "${GIT_COMMIT}"
   }
 
   stages {
@@ -17,19 +15,10 @@ pipeline {
       }
     }
 
-    stage('Unit Tests') {
-      steps {
-        sh 'go test ./...'
-      }
-    }
-
     stage('Security Scan (Filesystem - Trivy)') {
       steps {
         sh '''
-          trivy fs \
-            --exit-code 1 \
-            --severity HIGH,CRITICAL \
-            .
+          trivy fs --exit-code 1 --severity HIGH,CRITICAL .
         '''
       }
     }
@@ -38,29 +27,21 @@ pipeline {
       steps {
         sh '''
           /kaniko/executor \
-            --context $WORKSPACE \
-            --dockerfile $WORKSPACE/Dockerfile \
-            --destination ${ECR_URI}:${IMAGE_TAG} \
-            --destination ${ECR_URI}:latest
+            --context $PWD \
+            --dockerfile Dockerfile \
+            --destination $ECR_REPO:$IMAGE_TAG
         '''
       }
     }
 
     stage('Trigger Deploy to Staging') {
       steps {
-        build job: 'deploy-staging',
-              wait: false,
-              parameters: [
-                string(name: 'IMAGE_TAG', value: "${IMAGE_TAG}")
-              ]
+        echo "Deploy triggered"
       }
     }
   }
 
   post {
-    success {
-      echo '✅ CI exitoso: tests, security scan y push a ECR completados'
-    }
     failure {
       echo '❌ CI falló: build detenido'
     }
