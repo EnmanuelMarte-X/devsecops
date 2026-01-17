@@ -1,24 +1,28 @@
 version: 0.2
 
-env:
-  variables:
-    AWS_REGION: "us-east-1"
-    AWS_ACCOUNT_ID: "001109276188"
-    IMAGE_NAME: "ci-go-example"
-    IMAGE_TAG: "$CODEBUILD_BUILD_NUMBER"
-    ECR_REPO: "001109276188.dkr.ecr.us-east-1.amazonaws.com/devsecops/ci-go-example"
-
 phases:
+  install:
+    runtime-versions:
+      golang: 1.22
+
   pre_build:
     commands:
-      - echo "Logging in to ECR..."
+      - echo "Running unit tests"
+      - cd app
+      - go test ./...
+      - cd ..
+      - echo "Logging in to Amazon ECR"
       - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
   build:
     commands:
-      - echo "Building Docker image..."
+      - echo "Building Docker image"
+      - IMAGE_TAG=$CODEBUILD_BUILD_NUMBER
       - docker build -t $IMAGE_NAME:$IMAGE_TAG .
-      - docker tag $IMAGE_NAME:$IMAGE_TAG $ECR_REPO:$IMAGE_TAG
+      - docker tag $IMAGE_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+
   post_build:
     commands:
-      - echo "Pushing Docker image..."
-      - docker push $ECR_REPO:$IMAGE_TAG
+      - echo "Pushing image to ECR"
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+      - echo "Build completed successfully"
