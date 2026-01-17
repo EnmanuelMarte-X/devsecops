@@ -2,21 +2,17 @@ package main
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"testing"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("hello"))
-}
+func TestHealth(t *testing.T) {
+	req := httptest.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
 
-func health(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
-}
+	health(w, req)
 
-func main() {
-	http.HandleFunc("/", handler)
-	http.HandleFunc("/health", health)
-
-	http.ListenAndServe(":8080", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
 }
