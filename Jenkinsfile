@@ -2,8 +2,8 @@ pipeline {
   agent any
 
   environment {
-    AWS_REGION = 'us-east-1'
-    CODEBUILD_PROJECT = 'devops-project'
+    IMAGE_NAME = "ci-go-example"
+    REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
   }
 
   stages {
@@ -13,40 +13,41 @@ pipeline {
       }
     }
 
-    stage('Trigger CodeBuild') {
+    stage('Build Docker Image') {
       steps {
-        script {
-          def buildId = sh(
-            script: "aws codebuild start-build --project-name ${CODEBUILD_PROJECT} --region ${AWS_REGION} --query 'build.id' --output text",
-            returnStdout: true
-          ).trim()
+        sh "docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} ."
+      }
+    }
 
-          echo "CodeBuild started: ${buildId}"
+    stage('Unit Tests') {
+      steps {
+        sh "go test ./..."   // Cambia esto si no es Go
+      }
+    }
 
-          timeout(time: 20, unit: 'MINUTES') {
-            waitUntil {
-              def status = sh(
-                script: "aws codebuild batch-get-builds --ids ${buildId} --region ${AWS_REGION} --query 'builds[0].buildStatus' --output text",
-                returnStdout: true
-              ).trim()
+    stage('Trivy Scan') {
+      steps {
+        sh "trivy image ${IMAGE_NAME}:${BUILD_NUMBER}"
+      }
+    }
 
-              echo "Current CodeBuild status: ${status}"
-
-              return (status == 'SUCCEEDED' || status == 'FAILED' || status == 'FAULT' || status == 'STOPPED')
-            }
-          }
-
-          def finalStatus = sh(
-            script: "aws codebuild batch-get-builds --ids ${buildId} --region ${AWS_REGION} --query 'builds[0].buildStatus' --output text",
-            returnStdout: true
-          ).trim()
-
-          echo "Final CodeBuild status: ${finalStatus}"
-
-          if (finalStatus != 'SUCCEEDED') {
-            error "CodeBuild failed with status: ${finalStatus}"
-          }
+    stage('Push to ECR') {
+      steps {
+        withAWS(credentials: 'aws-credentials-id', region: "${AWS_REGION}") {
+          sh """
+            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY}
+            docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${REGISTRY}/${ECR_REPO}:${BUILD_NUMBER}
+            docker push ${REGISTRY}/${ECR_REPO}:${BUILD_NUMBER}
+          """
         }
+      }
+    }
+
+    stage('Trigger Deploy Staging') {
+      steps {
+        build job: 'deploy-staging', wait: false, parameters: [
+          string(name: 'IMAGE_TAG', value: "${BUILD_NUMBER}")
+        ]
       }
     }
   }
