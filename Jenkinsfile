@@ -18,7 +18,7 @@ pipeline {
 
     stage('Build & Push Image (Kaniko)') {
       steps {
-        // Ejecución optimizada: eliminamos el cacheo comprimido para ahorrar RAM
+        // Usamos flags para que el agente no pierda la conexión por falta de CPU
         sh """
           /kaniko/executor \
             --context ${WORKSPACE} \
@@ -26,6 +26,7 @@ pipeline {
             --destination ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${BUILD_NUMBER} \
             --destination ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest \
             --compressed-caching=false \
+            --snapshot-mode=time \
             --use-new-run \
             --cleanup
         """
@@ -35,10 +36,10 @@ pipeline {
 
   post {
     success {
-      echo "🚀 ¡Vocalis AI subida con éxito a ECR!"
+      echo "🚀 ¡Imagen de Vocalis AI subida con éxito!"
     }
     failure {
-      echo "❌ El proceso falló. Revisa si el Task Role tiene permisos de AmazonEC2ContainerRegistryPowerUser."
+      echo "❌ El agente de Fargate colapsó. Revisa en AWS ECS el 'Stopped Reason'."
     }
   }
 }
