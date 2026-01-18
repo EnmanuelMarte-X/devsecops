@@ -12,17 +12,13 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        // Descarga el código de tu repositorio de GitHub
         checkout scm
       }
     }
 
     stage('Build & Push Image (Kaniko)') {
       steps {
-        // Confirmamos visualmente los archivos antes de empezar
-        sh "ls -la ${WORKSPACE}"
-
-        // Ejecución de Kaniko con optimizaciones de memoria y red
+        // Ejecución optimizada: eliminamos el cacheo comprimido para ahorrar RAM
         sh """
           /kaniko/executor \
             --context ${WORKSPACE} \
@@ -31,24 +27,18 @@ pipeline {
             --destination ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest \
             --compressed-caching=false \
             --use-new-run \
-            --snapshot-mode=redo
+            --cleanup
         """
-      }
-    }
-
-    stage('Post-Build Summary') {
-      steps {
-        echo "✅ Imagen ${BUILD_NUMBER} enviada exitosamente a ECR: ${ECR_REPO}"
       }
     }
   }
 
   post {
     success {
-      echo '🚀 CI Completado con éxito en el repositorio ci-builds.'
+      echo "🚀 ¡Vocalis AI subida con éxito a ECR!"
     }
     failure {
-      echo '❌ Error en el Pipeline. Revisa los recursos de Fargate o los permisos de IAM.'
+      echo "❌ El proceso falló. Revisa si el Task Role tiene permisos de AmazonEC2ContainerRegistryPowerUser."
     }
   }
 }
