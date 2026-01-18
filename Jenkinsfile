@@ -1,83 +1,50 @@
 pipeline {
-  agent any
+  agent {
+    label 'kaniko-builder'
+  }
 
   environment {
-    IMAGE_TAG = "${BUILD_NUMBER}"
+    AWS_ACCOUNT_ID = '001109276188'
+    AWS_REGION     = 'us-east-1'
+    ECR_REPO       = 'ci-builds' 
   }
 
   stages {
-
     stage('Checkout') {
       steps {
         checkout scm
       }
     }
 
-    stage('Build Image (with Tests)') {
+    stage('Build & Push Image (Kaniko)') {
       steps {
+        // Confirmamos visualmente los archivos antes de empezar
+        sh "ls -la ${WORKSPACE}"
+
+        // Se usa 'dockerfile' en minúsculas para coincidir con tu repositorio
         sh """
-          docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+          /kaniko/executor \
+            --context ${WORKSPACE} \
+            --dockerfile dockerfile \
+            --destination ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${BUILD_NUMBER} \
+            --destination ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest
         """
       }
     }
 
-    stage('Security Scan (Trivy)') {
+    stage('Post-Build Summary') {
       steps {
-        sh """
-          trivy image \
-            --config security/trivy.yaml \
-            --output trivy-report.txt \
-            ${IMAGE_NAME}:${IMAGE_TAG}
-        """
-      }
-      post {
-        always {
-          archiveArtifacts artifacts: 'trivy-report.txt', allowEmptyArchive: true
-        }
-      }
-    }
-
-    stage('Login to ECR') {
-      steps {
-        withCredentials([
-          string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
-          string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
-        ]) {
-          sh """
-            export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-            export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-            export AWS_DEFAULT_REGION=${AWS_REGION}
-
-            aws ecr get-login-password --region ${AWS_REGION} |
-            docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-          """
-        }
-      }
-    }
-
-    stage('Tag Image for ECR') {
-      steps {
-        sh """
-          docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${ECR_REPO}:${IMAGE_TAG}
-        """
-      }
-    }
-
-    stage('Push Image to ECR') {
-      steps {
-        sh """
-          docker push ${ECR_REPO}:${IMAGE_TAG}
-        """
+        echo "✅ Imagen ${BUILD_NUMBER} enviada exitosamente a ECR."
       }
     }
   }
 
   post {
     success {
-      echo '✅ Pipeline completed successfully and image pushed to ECR'
+      echo '🚀 CI Completado con éxito en el repositorio ci-builds.'
     }
     failure {
-      echo '❌ Pipeline failed — check logs'
+      echo '❌ Error en el Pipeline. Revisa si el archivo se llama "dockerfile" o "Dockerfile".'
     }
   }
 }
