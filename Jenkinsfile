@@ -12,6 +12,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
+        // Descarga el código de tu repositorio de GitHub
         checkout scm
       }
     }
@@ -21,20 +22,23 @@ pipeline {
         // Confirmamos visualmente los archivos antes de empezar
         sh "ls -la ${WORKSPACE}"
 
-        // Se usa 'dockerfile' en minúsculas para coincidir con tu repositorio
+        // Ejecución de Kaniko con optimizaciones de memoria y red
         sh """
           /kaniko/executor \
             --context ${WORKSPACE} \
             --dockerfile dockerfile \
             --destination ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${BUILD_NUMBER} \
-            --destination ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest
+            --destination ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest \
+            --compressed-caching=false \
+            --use-new-run \
+            --snapshot-mode=redo
         """
       }
     }
 
     stage('Post-Build Summary') {
       steps {
-        echo "✅ Imagen ${BUILD_NUMBER} enviada exitosamente a ECR."
+        echo "✅ Imagen ${BUILD_NUMBER} enviada exitosamente a ECR: ${ECR_REPO}"
       }
     }
   }
@@ -44,7 +48,7 @@ pipeline {
       echo '🚀 CI Completado con éxito en el repositorio ci-builds.'
     }
     failure {
-      echo '❌ Error en el Pipeline. Revisa si el archivo se llama "dockerfile" o "Dockerfile".'
+      echo '❌ Error en el Pipeline. Revisa los recursos de Fargate o los permisos de IAM.'
     }
   }
 }
