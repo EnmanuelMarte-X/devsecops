@@ -34,4 +34,12 @@ pipeline {
     }
   }
 
+  post {
+    success {
+      echo "🚀 ¡Imagen de Vocalis AI subida con éxito!"
+    }
+    failure {
+      echo "❌ El agente de Fargate colapsó. Revisa en AWS ECS el 'Stopped Reason'."
+    }
+  }
 }
